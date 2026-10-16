@@ -1,6 +1,7 @@
 
 #include <iostream>
 #include <cstring>
+#include <fstream>
 #include "Parqueadero.h"
 
 using namespace std;
@@ -143,4 +144,24 @@ const char* Parqueadero::obtenerHora(int numeroCelda) const {
     }
 
     return celdas[numeroCelda - 1].hora;
+}
+void Parqueadero::guardarEstadoArchivo() const {
+    ofstream archivo("estado_parqueadero.csv");
+
+    if (!archivo.is_open()) {
+        cout << "Error: no se pudo guardar el estado.\n";
+        return;
+    }
+
+    // Encabezados del archivo
+    archivo << "celda,ocupada,placa,hora\n";
+
+    for (int i = 0; i < TOTAL_CELDAS; i++) {
+        archivo << i + 1 << ","
+                << (celdas[i].ocupada ? 1 : 0) << ","
+                << celdas[i].placa << ","
+                << celdas[i].hora << "\n";
+    }
+
+    archivo.close();
 }

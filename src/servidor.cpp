@@ -143,6 +143,7 @@ int main() {
         cout << "Hora recibida: " << solicitud.hora << "\n";
 
         parqueadero.procesarVehiculo(solicitud, respuesta);
+        parqueadero.guardarEstadoArchivo();
         parqueadero.mostrarEstado();
 
         if (!enviarCompleto(
