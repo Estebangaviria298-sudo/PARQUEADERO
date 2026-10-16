@@ -3,216 +3,163 @@
 #include <cstring>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+
 #include "VehiculoPacket.h"
+#include "Parqueadero.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
 #define PORT 8080
-#define TOTAL_CELDAS 40
 
-struct Celda {
-    bool ocupada;
-    char placa[7];
-    char hora[9];
-};
+using namespace std;
 
-Celda parqueadero[TOTAL_CELDAS];
-
-bool recibirCompleto(SOCKET sock, char* datos, int cantidad) {
+bool recibirCompleto(SOCKET socketCliente, char* datos, int cantidad) {
     int recibidos = 0;
 
     while (recibidos < cantidad) {
-        int resultado = recv(sock, datos + recibidos,
-                             cantidad - recibidos, 0);
-        if (resultado <= 0) return false;
+        int resultado = recv(
+            socketCliente,
+            datos + recibidos,
+            cantidad - recibidos,
+            0
+        );
+
+        if (resultado <= 0) {
+            return false;
+        }
+
         recibidos += resultado;
     }
 
     return true;
 }
 
-bool enviarCompleto(SOCKET sock, char* datos, int cantidad) {
+bool enviarCompleto(SOCKET socketCliente, const char* datos, int cantidad) {
     int enviados = 0;
 
     while (enviados < cantidad) {
-        int resultado = send(sock, datos + enviados,
-                             cantidad - enviados, 0);
-        if (resultado <= 0) return false;
+        int resultado = send(
+            socketCliente,
+            datos + enviados,
+            cantidad - enviados,
+            0
+        );
+
+        if (resultado <= 0) {
+            return false;
+        }
+
         enviados += resultado;
     }
 
     return true;
 }
 
-int buscarPlaca(const char placa[]) {
-    for (int i = 0; i < TOTAL_CELDAS; i++) {
-        if (parqueadero[i].ocupada &&
-            strcmp(parqueadero[i].placa, placa) == 0) {
-            return i;
-        }
-    }
-
-    return -1;
-}
-
-int buscarCeldaLibre() {
-    for (int i = 0; i < TOTAL_CELDAS; i++) {
-        if (!parqueadero[i].ocupada) return i;
-    }
-
-    return -1;
-}
-
-void mostrarEstado() {
-    int ocupadas = 0;
-
-    std::cout << "\n===== ESTADO DEL PARQUEADERO =====\n";
-
-    for (int i = 0; i < TOTAL_CELDAS; i++) {
-        std::cout << "Celda " << i + 1 << ": ";
-
-        if (parqueadero[i].ocupada) {
-            std::cout << "OCUPADA - "
-                      << parqueadero[i].placa
-                      << " - " << parqueadero[i].hora;
-            ocupadas++;
-        } else {
-            std::cout << "LIBRE";
-        }
-
-        std::cout << "\n";
-    }
-
-    std::cout << "Ocupadas: " << ocupadas << "\n";
-    std::cout << "Libres: " << TOTAL_CELDAS - ocupadas << "\n";
-    std::cout << "==================================\n";
-}
-
 int main() {
-    WSADATA wsaData;
+    WSADATA datosWinsock;
 
-    for (int i = 0; i < TOTAL_CELDAS; i++) {
-        parqueadero[i].ocupada = false;
-        parqueadero[i].placa[0] = '\0';
-        parqueadero[i].hora[0] = '\0';
-    }
-
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-        std::cout << "Error al iniciar Winsock.\n";
+    if (WSAStartup(MAKEWORD(2, 2), &datosWinsock) != 0) {
+        cout << "Error al iniciar Winsock.\n";
         return 1;
     }
 
     SOCKET servidor = socket(AF_INET, SOCK_STREAM, 0);
 
     if (servidor == INVALID_SOCKET) {
-        std::cout << "Error al crear el socket.\n";
+        cout << "Error al crear el socket del servidor.\n";
         WSACleanup();
         return 1;
     }
 
-    sockaddr_in direccion = {};
-    direccion.sin_family = AF_INET;
-    direccion.sin_addr.s_addr = INADDR_ANY;
-    direccion.sin_port = htons(PORT);
+    sockaddr_in direccionServidor = {};
+    direccionServidor.sin_family = AF_INET;
+    direccionServidor.sin_port = htons(PORT);
+    direccionServidor.sin_addr.s_addr = INADDR_ANY;
 
-    if (bind(servidor, reinterpret_cast<sockaddr*>(&direccion),
-             sizeof(direccion)) == SOCKET_ERROR) {
-        std::cout << "Error al asignar el puerto 8080.\n";
+    if (bind(
+        servidor,
+        (sockaddr*)&direccionServidor,
+        sizeof(direccionServidor)
+    ) == SOCKET_ERROR) {
+        cout << "Error al asociar el puerto " << PORT << ".\n";
         closesocket(servidor);
         WSACleanup();
         return 1;
     }
 
-    if (listen(servidor, 3) == SOCKET_ERROR) {
-        std::cout << "Error al escuchar conexiones.\n";
+    if (listen(servidor, 1) == SOCKET_ERROR) {
+        cout << "Error al poner el servidor en escucha.\n";
         closesocket(servidor);
         WSACleanup();
         return 1;
     }
 
-    std::cout << "SERVIDOR DEL PARQUEADERO\n";
-    std::cout << "Puerto: " << PORT << "\n";
-    std::cout << "Celdas: " << TOTAL_CELDAS << "\n";
-    std::cout << "Esperando conexion del cliente...\n";
+    cout << "====================================\n";
+    cout << " SERVIDOR DEL PARQUEADERO ITM\n";
+    cout << " Puerto: " << PORT << "\n";
+    cout << " Esperando conexion del cliente...\n";
+    cout << "====================================\n";
 
-    SOCKET cliente = accept(servidor, NULL, NULL);
+    sockaddr_in direccionCliente = {};
+    int tamanioDireccion = sizeof(direccionCliente);
+
+    SOCKET cliente = accept(
+        servidor,
+        (sockaddr*)&direccionCliente,
+        &tamanioDireccion
+    );
 
     if (cliente == INVALID_SOCKET) {
-        std::cout << "Error al aceptar al cliente.\n";
+        cout << "Error al aceptar la conexion.\n";
         closesocket(servidor);
         WSACleanup();
         return 1;
     }
 
-    std::cout << "Cliente conectado correctamente.\n";
+    cout << "Cliente conectado correctamente.\n";
+
+    // El servidor utiliza la clase Parqueadero para administrar las 40 celdas.
+    Parqueadero parqueadero;
 
     while (true) {
-        VehiculoPacket paquete = {};
+        VehiculoPacket solicitud = {};
 
-        if (!recibirCompleto(cliente,
-                reinterpret_cast<char*>(&paquete),
-                sizeof(paquete))) {
-            std::cout << "Cliente desconectado.\n";
+        if (!recibirCompleto(
+            cliente,
+            (char*)&solicitud,
+            sizeof(solicitud)
+        )) {
+            cout << "\nEl cliente se desconecto.\n";
             break;
         }
 
-        paquete.placa[6] = '\0';
-        paquete.hora[8] = '\0';
+        // Garantiza que los campos de texto terminen correctamente.
+        solicitud.placa[6] = '\0';
+        solicitud.hora[8] = '\0';
 
-        VehiculoPacket respuesta = paquete;
-        respuesta.aceptado = 0;
+        VehiculoPacket respuesta = {};
 
-        std::cout << "\nPlaca recibida: " << paquete.placa << "\n";
-        std::cout << "Hora recibida: " << paquete.hora << "\n";
+        cout << "\nPlaca recibida: " << solicitud.placa << "\n";
+        cout << "Hora recibida: " << solicitud.hora << "\n";
 
-        int posicion = buscarPlaca(paquete.placa);
+        parqueadero.procesarVehiculo(solicitud, respuesta);
+        parqueadero.mostrarEstado();
 
-        if (posicion != -1) {
-            respuesta.esSalida = 1;
-            respuesta.celda = posicion + 1;
-            respuesta.aceptado = 1;
-
-            parqueadero[posicion].ocupada = false;
-            parqueadero[posicion].placa[0] = '\0';
-            parqueadero[posicion].hora[0] = '\0';
-
-            std::cout << "Salida: celda "
-                      << posicion + 1 << " liberada.\n";
-        } else if (paquete.esSalida == 1) {
-            respuesta.aceptado = 0;
-            std::cout << "Salida rechazada: placa desconocida.\n";
-        } else {
-            int celda = buscarCeldaLibre();
-
-            if (celda == -1) {
-                respuesta.aceptado = 0;
-                std::cout << "Parqueadero lleno.\n";
-            } else {
-                parqueadero[celda].ocupada = true;
-                strcpy(parqueadero[celda].placa, paquete.placa);
-                strcpy(parqueadero[celda].hora, paquete.hora);
-
-                respuesta.celda = celda + 1;
-                respuesta.esSalida = 0;
-                respuesta.aceptado = 1;
-
-                std::cout << "Entrada: asignada celda "
-                          << celda + 1 << ".\n";
-            }
-        }
-
-        if (!enviarCompleto(cliente,
-                reinterpret_cast<char*>(&respuesta),
-                sizeof(respuesta))) {
-            std::cout << "Error enviando respuesta.\n";
+        if (!enviarCompleto(
+            cliente,
+            (char*)&respuesta,
+            sizeof(respuesta)
+        )) {
+            cout << "Error al enviar la respuesta al cliente.\n";
             break;
         }
-
-        mostrarEstado();
     }
 
     closesocket(cliente);
     closesocket(servidor);
     WSACleanup();
+
+    cout << "Servidor detenido correctamente.\n";
+
     return 0;
 }
