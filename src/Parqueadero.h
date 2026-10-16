@@ -28,6 +28,12 @@ public:
     );
 
     void mostrarEstado() const;
+
+    // Funciones para consultar el parqueadero desde Python.
+    int contarOcupadas() const;
+    bool estaOcupada(int numeroCelda) const;
+    const char* obtenerPlaca(int numeroCelda) const;
+    const char* obtenerHora(int numeroCelda) const;
 };
 
 #endif

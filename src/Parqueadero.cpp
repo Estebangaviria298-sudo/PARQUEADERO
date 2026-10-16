@@ -3,6 +3,8 @@
 #include <cstring>
 #include "Parqueadero.h"
 
+using namespace std;
+
 Parqueadero::Parqueadero() {
     for (int i = 0; i < TOTAL_CELDAS; i++) {
         celdas[i].ocupada = false;
@@ -18,6 +20,7 @@ int Parqueadero::buscarPlaca(const char placa[]) const {
             return i;
         }
     }
+
     return -1;
 }
 
@@ -27,6 +30,7 @@ int Parqueadero::buscarCeldaLibre() const {
             return i;
         }
     }
+
     return -1;
 }
 
@@ -48,19 +52,21 @@ void Parqueadero::procesarVehiculo(
         celdas[posicion].placa[0] = '\0';
         celdas[posicion].hora[0] = '\0';
 
-        std::cout << "Salida: celda "
-                  << posicion + 1 << " liberada.\n";
+        cout << "Salida: celda "
+             << posicion + 1 << " liberada.\n";
     }
     else if (solicitud.esSalida == 1) {
         respuesta.aceptado = 0;
-        std::cout << "Salida rechazada: placa desconocida.\n";
+
+        cout << "Salida rechazada: placa desconocida.\n";
     }
     else {
         int celda = buscarCeldaLibre();
 
         if (celda == -1) {
             respuesta.aceptado = 0;
-            std::cout << "Parqueadero lleno.\n";
+
+            cout << "Parqueadero lleno.\n";
         }
         else {
             celdas[celda].ocupada = true;
@@ -72,35 +78,69 @@ void Parqueadero::procesarVehiculo(
             respuesta.esSalida = 0;
             respuesta.aceptado = 1;
 
-            std::cout << "Entrada: asignada celda "
-                      << celda + 1 << ".\n";
+            cout << "Entrada: asignada celda "
+                 << celda + 1 << ".\n";
         }
     }
 }
 
 void Parqueadero::mostrarEstado() const {
-    int ocupadas = 0;
+    int ocupadas = contarOcupadas();
 
-    std::cout << "\n===== ESTADO DEL PARQUEADERO =====\n";
+    cout << "\n===== ESTADO DEL PARQUEADERO =====\n";
 
     for (int i = 0; i < TOTAL_CELDAS; i++) {
-        std::cout << "Celda " << i + 1 << ": ";
+        cout << "Celda " << i + 1 << ": ";
 
         if (celdas[i].ocupada) {
-            std::cout << "OCUPADA - "
-                      << celdas[i].placa
-                      << " - " << celdas[i].hora;
-            ocupadas++;
+            cout << "OCUPADA - "
+                 << celdas[i].placa
+                 << " - " << celdas[i].hora;
         }
         else {
-            std::cout << "LIBRE";
+            cout << "LIBRE";
         }
 
-        std::cout << "\n";
+        cout << "\n";
     }
 
-    std::cout << "Ocupadas: " << ocupadas << "\n";
-    std::cout << "Libres: "
-              << TOTAL_CELDAS - ocupadas << "\n";
-    std::cout << "==================================\n";
+    cout << "Ocupadas: " << ocupadas << "\n";
+    cout << "Libres: " << TOTAL_CELDAS - ocupadas << "\n";
+    cout << "==================================\n";
+}
+
+int Parqueadero::contarOcupadas() const {
+    int cantidad = 0;
+
+    for (int i = 0; i < TOTAL_CELDAS; i++) {
+        if (celdas[i].ocupada) {
+            cantidad++;
+        }
+    }
+
+    return cantidad;
+}
+
+bool Parqueadero::estaOcupada(int numeroCelda) const {
+    if (numeroCelda < 1 || numeroCelda > TOTAL_CELDAS) {
+        return false;
+    }
+
+    return celdas[numeroCelda - 1].ocupada;
+}
+
+const char* Parqueadero::obtenerPlaca(int numeroCelda) const {
+    if (numeroCelda < 1 || numeroCelda > TOTAL_CELDAS) {
+        return "";
+    }
+
+    return celdas[numeroCelda - 1].placa;
+}
+
+const char* Parqueadero::obtenerHora(int numeroCelda) const {
+    if (numeroCelda < 1 || numeroCelda > TOTAL_CELDAS) {
+        return "";
+    }
+
+    return celdas[numeroCelda - 1].hora;
 }
