@@ -1,35 +1,73 @@
-# Pruebas del parqueadero - ITM
+# Plan y registro de pruebas — Parqueadero ITM
 
 ## 1. Objetivo
 
-Verificar el funcionamiento de la comunicación entre el cliente y el servidor del sistema de parqueadero.
+Registrar las pruebas realizadas y pendientes del sistema de parqueadero desarrollado en C++ y Python.
 
 ## 2. Compilación
 
-Se compilaron el cliente y el servidor en C++ utilizando g++ y la biblioteca Winsock.
+**Prueba:** compilar el cliente y el servidor con g++ y Winsock.
+
+**Resultado:** realizada durante el desarrollo.
 
 ## 3. Comunicación por sockets
 
-Se ejecutaron el servidor y el cliente en ventanas separadas. Se comprobó que el servidor recibiera las placas enviadas por el cliente.
+**Prueba:** ejecutar el cliente y el servidor en procesos separados y verificar el envío y la recepción de las placas.
 
-**Resultado:** la comunicación funcionó correctamente durante la prueba realizada.
+**Resultado:** la comunicación básica funcionó en las pruebas realizadas.
 
-## 4. Entrada de vehículos
+**Pendiente:** validar la conexión entre dos computadores diferentes conectados por Ethernet en el ITM.
 
-Se comprobó que el servidor asignara una celda disponible al recibir una placa nueva.
+## 4. Entrada y salida de vehículos
 
-## 5. Salida de vehículos
+**Prueba:** enviar una placa nueva y comprobar que se asigne una celda libre. Enviar nuevamente una placa activa y comprobar que se libere su celda.
 
-Se verificó que el servidor liberara la celda cuando recibía nuevamente una placa que se encontraba ocupando el parqueadero.
+**Resultado:** lógica implementada y probada durante el desarrollo.
 
-## 6. Capacidad
+## 5. Capacidad del parqueadero
 
-El sistema administra 40 celdas y muestra cuántas están ocupadas y cuántas están libres.
+**Prueba:** comprobar que el sistema administre 40 celdas y muestre las cantidades ocupadas y libres.
 
-## 7. Pruebas pendientes
+**Resultado:** implementado.
 
-Quedan pendientes las pruebas del visualizador gráfico en Python y de la integración mediante SWIG.
+## 6. Persistencia del estado
 
-## 8. Conclusión
+**Prueba:** guardar el estado en `estado_parqueadero.csv`, cerrar el servidor y recuperar la información en una nueva ejecución.
 
-La comunicación básica entre el cliente y el servidor funciona. El proyecto continuará con la organización del código y el desarrollo de los componentes restantes.
+**Resultado:** recuperación del estado probada durante el desarrollo.
+
+## 7. Visualizador Python
+
+**Prueba:** ejecutar `python/visualizador.py`, comprobar la visualización de las 40 celdas y verificar que se actualicen según el archivo CSV.
+
+**Resultado:** visualizador implementado y probado con el archivo de estado.
+
+**Pendiente:** confirmar su funcionamiento durante la comunicación real entre los dos computadores del ITM.
+
+## 8. Integración con SWIG
+
+**Prueba:** generar la interfaz SWIG, compilar la extensión dinámica e importarla desde Python.
+
+**Resultado:** la extensión se compiló y su importación se probó por separado.
+
+**Pendiente:** comprobar la integración directa de SWIG con el estado que administra el servidor en ejecución.
+
+## 9. Cierre del servidor
+
+**Prueba:** presionar `Q` y comprobar que el servidor finalice y guarde el estado.
+
+**Resultado:** funcionalidad implementada y probada durante el desarrollo.
+
+## 10. Pruebas de red en el ITM
+
+- [ ] Consultar la IPv4 actual del computador servidor.
+- [ ] Configurar esa dirección en el cliente.
+- [ ] Comprobar la conectividad entre los computadores.
+- [ ] Verificar que el puerto configurado esté permitido por el firewall.
+- [ ] Ejecutar cliente, servidor y visualizador.
+- [ ] Confirmar la actualización de las celdas al recibir vehículos.
+- [ ] Comprobar la persistencia del estado después del cierre.
+
+## 11. Conclusión
+
+El sistema cuenta con los componentes principales implementados. Las pruebas locales realizadas permiten avanzar hacia la validación final. La conexión entre los computadores del ITM y la integración directa de SWIG con el estado real del servidor permanecen como verificaciones pendientes.
