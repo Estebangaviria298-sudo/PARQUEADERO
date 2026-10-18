@@ -1,6 +1,7 @@
 
 #include <iostream>
 #include <cstring>
+#include <conio.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
@@ -66,11 +67,24 @@ bool enviarCompleto(
 }
 
 
+// Detectar si el usuario presiona Q.
+bool quiereSalir() {
+    if (_kbhit()) {
+        int tecla = _getch();
+
+        if (tecla == 'q' || tecla == 'Q') {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
 int main() {
-    // Crear el administrador del parqueadero.
     Parqueadero parqueadero;
 
-    // Elegir qué hacer con la información guardada.
+    // Elegir si se recuperan los datos anteriores.
     int opcion;
 
     cout << "\n====================================\n";
@@ -81,7 +95,7 @@ int main() {
     cout << "Selecciona una opcion: ";
 
     if (!(cin >> opcion)) {
-        cout << "Entrada invalida. Cierra y vuelve a iniciar.\n";
+        cout << "Entrada invalida.\n";
         return 1;
     }
 
@@ -89,7 +103,7 @@ int main() {
         cout << "Opcion invalida. Escribe 1 o 2: ";
 
         if (!(cin >> opcion)) {
-            cout << "Entrada invalida. Cierra y vuelve a iniciar.\n";
+            cout << "Entrada invalida.\n";
             return 1;
         }
     }
@@ -105,11 +119,10 @@ int main() {
         cout << "\nSe iniciara desde cero.\n";
     }
 
-    // Guardar el estado inicial elegido y mostrar las 40 celdas.
     parqueadero.guardarEstadoArchivo();
     parqueadero.mostrarEstado();
 
-    // Inicializar la comunicacion de Windows.
+    // Iniciar Winsock.
     WSADATA datosWinsock;
 
     if (WSAStartup(MAKEWORD(2, 2), &datosWinsock) != 0) {
@@ -120,7 +133,7 @@ int main() {
     SOCKET servidor = socket(AF_INET, SOCK_STREAM, 0);
 
     if (servidor == INVALID_SOCKET) {
-        cout << "Error al crear el socket del servidor.\n";
+        cout << "Error al crear el socket.\n";
         WSACleanup();
         return 1;
     }
@@ -136,14 +149,13 @@ int main() {
         sizeof(direccionServidor)
     ) == SOCKET_ERROR) {
         cout << "Error al asociar el puerto " << PORT << ".\n";
-        cout << "Comprueba que no haya otro servidor ejecutandose.\n";
         closesocket(servidor);
         WSACleanup();
         return 1;
     }
 
     if (listen(servidor, 1) == SOCKET_ERROR) {
-        cout << "Error al poner el servidor en escucha.\n";
+        cout << "Error al iniciar la escucha.\n";
         closesocket(servidor);
         WSACleanup();
         return 1;
@@ -152,75 +164,155 @@ int main() {
     cout << "\n====================================\n";
     cout << " SERVIDOR DEL PARQUEADERO ITM\n";
     cout << " Puerto: " << PORT << "\n";
+    cout << " Presiona Q para salir.\n";
     cout << " Esperando conexion del cliente...\n";
     cout << "====================================\n";
 
-    sockaddr_in direccionCliente = {};
-    int tamanioDireccion = sizeof(direccionCliente);
+    SOCKET cliente = INVALID_SOCKET;
+    bool salir = false;
 
-    SOCKET cliente = accept(
-        servidor,
-        (sockaddr*)&direccionCliente,
-        &tamanioDireccion
-    );
-
-    if (cliente == INVALID_SOCKET) {
-        cout << "Error al aceptar la conexion.\n";
-        closesocket(servidor);
-        WSACleanup();
-        return 1;
-    }
-
-    cout << "Cliente conectado correctamente.\n";
-
-    // Recibir y procesar los vehiculos.
-    while (true) {
-        VehiculoPacket solicitud = {};
-
-        if (!recibirCompleto(
-            cliente,
-            (char*)&solicitud,
-            sizeof(solicitud)
-        )) {
-            cout << "\nEl cliente se desconecto.\n";
+    // Esperar al cliente sin dejar de revisar la tecla Q.
+    while (!salir) {
+        if (quiereSalir()) {
+            salir = true;
             break;
         }
 
-        // Garantizar el final de las cadenas.
-        solicitud.placa[6] = '\0';
-        solicitud.hora[8] = '\0';
+        fd_set conjuntoLectura;
+        FD_ZERO(&conjuntoLectura);
+        FD_SET(servidor, &conjuntoLectura);
 
-        VehiculoPacket respuesta = {};
+        timeval espera;
+        espera.tv_sec = 0;
+        espera.tv_usec = 100000;
 
-        cout << "\nPlaca recibida: "
-             << solicitud.placa << "\n";
-
-        cout << "Hora recibida: "
-             << solicitud.hora << "\n";
-
-        parqueadero.procesarVehiculo(
-            solicitud,
-            respuesta
+        int resultado = select(
+            0,
+            &conjuntoLectura,
+            NULL,
+            NULL,
+            &espera
         );
 
-        // Guardar y mostrar el estado actualizado.
-        parqueadero.guardarEstadoArchivo();
-        parqueadero.mostrarEstado();
-
-        if (!enviarCompleto(
-            cliente,
-            (char*)&respuesta,
-            sizeof(respuesta)
-        )) {
-            cout << "Error al enviar la respuesta al cliente.\n";
+        if (resultado == SOCKET_ERROR) {
+            cout << "Error al revisar conexiones.\n";
             break;
+        }
+
+        if (resultado == 0) {
+            continue;
+        }
+
+        sockaddr_in direccionCliente = {};
+        int tamanioDireccion = sizeof(direccionCliente);
+
+        cliente = accept(
+            servidor,
+            (sockaddr*)&direccionCliente,
+            &tamanioDireccion
+        );
+
+        if (cliente == INVALID_SOCKET) {
+            cout << "Error al aceptar la conexion.\n";
+            continue;
+        }
+
+        cout << "\nCliente conectado correctamente.\n";
+        cout << "Presiona Q para detener el servidor.\n";
+
+        // Recibir vehiculos y revisar la tecla Q.
+        while (!salir) {
+            if (quiereSalir()) {
+                salir = true;
+                break;
+            }
+
+            fd_set lecturaCliente;
+            FD_ZERO(&lecturaCliente);
+            FD_SET(cliente, &lecturaCliente);
+
+            timeval esperaCliente;
+            esperaCliente.tv_sec = 0;
+            esperaCliente.tv_usec = 100000;
+
+            int disponible = select(
+                0,
+                &lecturaCliente,
+                NULL,
+                NULL,
+                &esperaCliente
+            );
+
+            if (disponible == SOCKET_ERROR) {
+                cout << "Error en la conexion del cliente.\n";
+                break;
+            }
+
+            if (disponible == 0) {
+                continue;
+            }
+
+            VehiculoPacket solicitud = {};
+
+            if (!recibirCompleto(
+                cliente,
+                (char*)&solicitud,
+                sizeof(solicitud)
+            )) {
+                cout << "\nEl cliente se desconecto.\n";
+                break;
+            }
+
+            solicitud.placa[6] = '\0';
+            solicitud.hora[8] = '\0';
+
+            VehiculoPacket respuesta = {};
+
+            cout << "\nPlaca recibida: "
+                 << solicitud.placa << "\n";
+
+            cout << "Hora recibida: "
+                 << solicitud.hora << "\n";
+
+            parqueadero.procesarVehiculo(
+                solicitud,
+                respuesta
+            );
+
+            parqueadero.guardarEstadoArchivo();
+            parqueadero.mostrarEstado();
+
+            if (!enviarCompleto(
+                cliente,
+                (char*)&respuesta,
+                sizeof(respuesta)
+            )) {
+                cout << "Error al responder al cliente.\n";
+                break;
+            }
+        }
+
+        if (cliente != INVALID_SOCKET) {
+            closesocket(cliente);
+            cliente = INVALID_SOCKET;
+        }
+
+        if (!salir) {
+            cout << "\nEsperando otra conexion...\n";
         }
     }
 
-    closesocket(cliente);
+    // Guardar el estado final y liberar los recursos.
+    parqueadero.guardarEstadoArchivo();
+
+    if (cliente != INVALID_SOCKET) {
+        closesocket(cliente);
+    }
+
     closesocket(servidor);
     WSACleanup();
 
+    cout << "\nEstado del parqueadero guardado.\n";
     cout << "Servidor detenido correctamente.\n";
 
     return 0;
