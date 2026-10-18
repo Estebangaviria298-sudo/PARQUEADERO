@@ -6,3 +6,8 @@
 __pycache__/
 .venv/
 .vscode/
+
+# Archivos generados durante la ejecucion
+/estado_parqueadero.csv
+/python/parqueadero.py
+/python/parqueadero_wrap.cxx
