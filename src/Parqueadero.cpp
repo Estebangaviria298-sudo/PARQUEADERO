@@ -2,6 +2,8 @@
 #include <iostream>
 #include <cstring>
 #include <fstream>
+#include <sstream>
+#include <string>
 #include "Parqueadero.h"
 
 using namespace std;
@@ -164,4 +166,77 @@ void Parqueadero::guardarEstadoArchivo() const {
     }
 
     archivo.close();
+}
+
+bool Parqueadero::cargarEstadoArchivo() {
+    ifstream archivo("estado_parqueadero.csv");
+
+    if (!archivo.is_open()) {
+        return false;
+    }
+
+    // Comenzar con las 40 celdas libres.
+    for (int i = 0; i < TOTAL_CELDAS; i++) {
+        celdas[i].ocupada = false;
+        celdas[i].placa[0] = '\0';
+        celdas[i].hora[0] = '\0';
+    }
+
+    string linea;
+
+    // Ignorar el encabezado del CSV.
+    getline(archivo, linea);
+
+    while (getline(archivo, linea)) {
+        stringstream fila(linea);
+
+        string numeroTexto;
+        string ocupadaTexto;
+        string placa;
+        string hora;
+
+        getline(fila, numeroTexto, ',');
+        getline(fila, ocupadaTexto, ',');
+        getline(fila, placa, ',');
+        getline(fila, hora);
+
+        if (numeroTexto.empty() || ocupadaTexto.empty()) {
+            continue;
+        }
+
+        int numero = stoi(numeroTexto);
+        int ocupada = stoi(ocupadaTexto);
+
+        if (numero < 1 || numero > TOTAL_CELDAS) {
+            continue;
+        }
+
+        int posicion = numero - 1;
+
+        if (ocupada == 1) {
+            celdas[posicion].ocupada = true;
+
+            strncpy(
+                celdas[posicion].placa,
+                placa.c_str(),
+                sizeof(celdas[posicion].placa) - 1
+            );
+            celdas[posicion].placa[
+                sizeof(celdas[posicion].placa) - 1
+            ] = '\0';
+
+            strncpy(
+                celdas[posicion].hora,
+                hora.c_str(),
+                sizeof(celdas[posicion].hora) - 1
+            );
+            celdas[posicion].hora[
+                sizeof(celdas[posicion].hora) - 1
+            ] = '\0';
+        }
+    }
+
+    archivo.close();
+
+    return true;
 }

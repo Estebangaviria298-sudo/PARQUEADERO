@@ -13,7 +13,12 @@
 
 using namespace std;
 
-bool recibirCompleto(SOCKET socketCliente, char* datos, int cantidad) {
+
+bool recibirCompleto(
+    SOCKET socketCliente,
+    char* datos,
+    int cantidad
+) {
     int recibidos = 0;
 
     while (recibidos < cantidad) {
@@ -34,7 +39,12 @@ bool recibirCompleto(SOCKET socketCliente, char* datos, int cantidad) {
     return true;
 }
 
-bool enviarCompleto(SOCKET socketCliente, const char* datos, int cantidad) {
+
+bool enviarCompleto(
+    SOCKET socketCliente,
+    const char* datos,
+    int cantidad
+) {
     int enviados = 0;
 
     while (enviados < cantidad) {
@@ -55,7 +65,51 @@ bool enviarCompleto(SOCKET socketCliente, const char* datos, int cantidad) {
     return true;
 }
 
+
 int main() {
+    // Crear el administrador del parqueadero.
+    Parqueadero parqueadero;
+
+    // Elegir qué hacer con la información guardada.
+    int opcion;
+
+    cout << "\n====================================\n";
+    cout << "       PARQUEADERO ITM\n";
+    cout << "====================================\n";
+    cout << "1. Cargar informacion anterior\n";
+    cout << "2. Empezar desde cero\n";
+    cout << "Selecciona una opcion: ";
+
+    if (!(cin >> opcion)) {
+        cout << "Entrada invalida. Cierra y vuelve a iniciar.\n";
+        return 1;
+    }
+
+    while (opcion != 1 && opcion != 2) {
+        cout << "Opcion invalida. Escribe 1 o 2: ";
+
+        if (!(cin >> opcion)) {
+            cout << "Entrada invalida. Cierra y vuelve a iniciar.\n";
+            return 1;
+        }
+    }
+
+    if (opcion == 1) {
+        if (parqueadero.cargarEstadoArchivo()) {
+            cout << "\nInformacion anterior recuperada.\n";
+        } else {
+            cout << "\nNo se encontro informacion guardada.\n";
+            cout << "Se iniciara un parqueadero vacio.\n";
+        }
+    } else {
+        cout << "\nSe iniciara desde cero.\n";
+    }
+
+    // Guardar el estado inicial elegido y mostrar las 40 celdas.
+    parqueadero.guardarEstadoArchivo();
+    parqueadero.mostrarEstado();
+
+    // Inicializar la comunicacion de Windows.
     WSADATA datosWinsock;
 
     if (WSAStartup(MAKEWORD(2, 2), &datosWinsock) != 0) {
@@ -82,6 +136,7 @@ int main() {
         sizeof(direccionServidor)
     ) == SOCKET_ERROR) {
         cout << "Error al asociar el puerto " << PORT << ".\n";
+        cout << "Comprueba que no haya otro servidor ejecutandose.\n";
         closesocket(servidor);
         WSACleanup();
         return 1;
@@ -94,7 +149,7 @@ int main() {
         return 1;
     }
 
-    cout << "====================================\n";
+    cout << "\n====================================\n";
     cout << " SERVIDOR DEL PARQUEADERO ITM\n";
     cout << " Puerto: " << PORT << "\n";
     cout << " Esperando conexion del cliente...\n";
@@ -118,9 +173,7 @@ int main() {
 
     cout << "Cliente conectado correctamente.\n";
 
-    // El servidor utiliza la clase Parqueadero para administrar las 40 celdas.
-    Parqueadero parqueadero;
-
+    // Recibir y procesar los vehiculos.
     while (true) {
         VehiculoPacket solicitud = {};
 
@@ -133,16 +186,24 @@ int main() {
             break;
         }
 
-        // Garantiza que los campos de texto terminen correctamente.
+        // Garantizar el final de las cadenas.
         solicitud.placa[6] = '\0';
         solicitud.hora[8] = '\0';
 
         VehiculoPacket respuesta = {};
 
-        cout << "\nPlaca recibida: " << solicitud.placa << "\n";
-        cout << "Hora recibida: " << solicitud.hora << "\n";
+        cout << "\nPlaca recibida: "
+             << solicitud.placa << "\n";
 
-        parqueadero.procesarVehiculo(solicitud, respuesta);
+        cout << "Hora recibida: "
+             << solicitud.hora << "\n";
+
+        parqueadero.procesarVehiculo(
+            solicitud,
+            respuesta
+        );
+
+        // Guardar y mostrar el estado actualizado.
         parqueadero.guardarEstadoArchivo();
         parqueadero.mostrarEstado();
 

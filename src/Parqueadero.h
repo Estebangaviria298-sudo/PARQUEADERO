@@ -29,6 +29,7 @@ public:
 
     void mostrarEstado() const;
     void guardarEstadoArchivo() const;
+    bool cargarEstadoArchivo();
 
     // Funciones para consultar el parqueadero desde Python.
     int contarOcupadas() const;
