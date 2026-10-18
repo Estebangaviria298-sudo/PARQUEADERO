@@ -1,15 +1,21 @@
 
 import tkinter as tk
-import csv
+import sys
 from pathlib import Path
 
 
 TOTAL_CELDAS = 40
 
-ARCHIVO_ESTADO = (
-    Path(__file__).resolve().parent.parent
-    / "estado_parqueadero.csv"
-)
+# Permite importar la librería SWIG ubicada en esta misma carpeta.
+CARPETA_PYTHON = Path(__file__).resolve().parent
+sys.path.insert(0, str(CARPETA_PYTHON))
+
+try:
+    import parqueadero
+    ERROR_SWIG = None
+except ImportError as error:
+    parqueadero = None
+    ERROR_SWIG = str(error)
 
 
 class VisualizadorParqueadero:
@@ -19,6 +25,12 @@ class VisualizadorParqueadero:
         self.ventana.geometry("950x700")
         self.ventana.minsize(600, 400)
         self.ventana.configure(bg="#f0f2f5")
+
+        # Objeto C++ expuesto mediante la librería SWIG.
+        self.parqueadero = None
+
+        if parqueadero is not None:
+            self.parqueadero = parqueadero.Parqueadero()
 
         contenedor = tk.Frame(ventana, bg="#f0f2f5")
         contenedor.pack(fill="both", expand=True)
@@ -140,39 +152,52 @@ class VisualizadorParqueadero:
         self.actualizar_estado()
 
     def actualizar_estado(self):
-        if not ARCHIVO_ESTADO.exists():
+        # Comprobar si la librería SWIG se pudo importar.
+        if self.parqueadero is None:
             self.estado.config(
-                text="Esperando datos: inicia el servidor y el cliente."
+                text="Error al cargar la librería SWIG."
             )
             self.ventana.after(1000, self.actualizar_estado)
             return
 
         try:
-            with open(
-                ARCHIVO_ESTADO,
-                "r",
-                newline="",
-                encoding="utf-8"
-            ) as archivo:
-                lector = csv.DictReader(archivo)
-                datos = list(lector)
+            # Cargar en el objeto C++ el estado guardado por el servidor.
+            archivo_cargado = (
+                self.parqueadero.cargarEstadoArchivo()
+            )
+
+            if not archivo_cargado:
+                self.estado.config(
+                    text=(
+                        "Esperando datos: inicia el servidor "
+                        "para crear el archivo de estado."
+                    )
+                )
+                self.ventana.after(1000, self.actualizar_estado)
+                return
 
             ocupadas = 0
 
-            for dato in datos:
-                numero = int(dato["celda"])
-                esta_ocupada = dato["ocupada"] == "1"
-                placa = dato["placa"]
-                hora = dato["hora"]
-
-                if numero < 1 or numero > TOTAL_CELDAS:
-                    continue
+            # Consultar cada una de las 40 celdas a través de SWIG.
+            for numero in range(1, TOTAL_CELDAS + 1):
+                esta_ocupada = bool(
+                    self.parqueadero.estaOcupada(numero)
+                )
 
                 celda = self.celdas[numero - 1]
 
                 if esta_ocupada:
                     ocupadas += 1
-                    texto = f"CELDA {numero}\n{placa}\n{hora}"
+
+                    placa = self.parqueadero.obtenerPlaca(numero)
+                    hora = self.parqueadero.obtenerHora(numero)
+
+                    texto = (
+                        f"CELDA {numero}\n"
+                        f"{placa}\n"
+                        f"{hora}"
+                    )
+
                     celda.config(
                         text=texto,
                         bg="#fca5a5",
@@ -192,12 +217,12 @@ class VisualizadorParqueadero:
             )
 
             self.estado.config(
-                text="Estado actualizado desde el servidor."
+                text="Estado actualizado mediante C++ y SWIG."
             )
 
-        except (OSError, csv.Error, KeyError, ValueError):
+        except (OSError, RuntimeError, ValueError) as error:
             self.estado.config(
-                text="Leyendo estado del parqueadero..."
+                text=f"Error al consultar el parqueadero: {error}"
             )
 
         self.ventana.after(1000, self.actualizar_estado)
